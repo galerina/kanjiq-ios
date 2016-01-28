@@ -41,9 +41,6 @@
                                 <accessibility key="accessibilityConfiguration">
                                     <accessibilityTraits key="traits" notEnabled="YES"/>
                                 </accessibility>
-                                <connections>
-                                    <outlet property="kanjiTextView" destination="vXz-vZ-kYO" id="8FY-ps-Hmo"/>
-                                </connections>
                             </tableViewCell>
                         </prototypes>
                         <connections>
