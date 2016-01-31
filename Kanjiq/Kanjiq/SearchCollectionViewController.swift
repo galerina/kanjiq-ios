@@ -13,6 +13,7 @@ private let reuseIdentifier = "Cell"
 class SearchCollectionViewController: UIViewController, UICollectionViewDataSource, UISearchBarDelegate {
     // MARK: properties
     var matchingKanji: [String]!
+    var matchingWords: [String]!
     var searchService: SearchService!
     var searchActive: Bool = false
     
@@ -46,7 +47,6 @@ class SearchCollectionViewController: UIViewController, UICollectionViewDataSour
 
     func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         if matchingKanji != nil {
-            print("Matchin Kanji cnt: \(matchingKanji.count)")
             return matchingKanji.count
         } else {
             return 0
@@ -83,7 +83,7 @@ class SearchCollectionViewController: UIViewController, UICollectionViewDataSour
         
         let query = searchBar.text?.lowercaseString
         if !(query ?? "").isEmpty {
-            matchingKanji = searchService.search(queryString:query!)
+            matchingKanji = searchService.searchKanji(queryString:query!)
         }
     
         collectionView.reloadData()

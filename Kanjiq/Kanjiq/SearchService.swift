@@ -79,9 +79,8 @@ class SearchService {
     }
     
     
-    func search(queryString query: String) -> [String] {
+    func searchKanji(queryString query: String) -> [String] {
         let tokens = tokenize(string:query)
-        print(tokens)
         if tokens.isEmpty {
             return []
         }
