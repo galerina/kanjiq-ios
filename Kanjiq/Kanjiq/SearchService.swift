@@ -15,34 +15,37 @@ class SearchService {
     var kanjiInfo: NSDictionary!
     
     init() {
-        if let asset = NSDataAsset(name:"kanjiLookup") {
-            do {
-                let kanjiLookupJson = try NSJSONSerialization.JSONObjectWithData(asset.data, options: NSJSONReadingOptions.MutableContainers) as? NSDictionary
-                if kanjiLookupJson != nil
-                {
-                    print("Success")
-                    if let meaningsTable = kanjiLookupJson!["meaningTable"] {
-                        kanjiMeaningLookup = [:]
-                        for (key, value) in meaningsTable as! NSDictionary {
-                            kanjiMeaningLookup[key as! String] = Set(value as! [String])
-                        }
-                    }
-                    
-                    if let radicalTable = kanjiLookupJson!["radicalTable"] {
-                        kanjiRadicalLookup = [:]
-                        for (key, value) in radicalTable as! NSDictionary {
-                            kanjiRadicalLookup[key as! String] = Set(value as! [String])
-                        }
-                    }
-                } else {
-                    print("JSON Failed")
+        if let kanjiLookupJson = getJSONAssetAsNSDictionary(assetName: "kanjiLookup") {
+            if let meaningsTable = kanjiLookupJson["meaningTable"] {
+                kanjiMeaningLookup = [:]
+                for (key, value) in meaningsTable as! NSDictionary {
+                    kanjiMeaningLookup[key as! String] = Set(value as! [String])
                 }
-            } catch {
-                print("Reading file failed")
             }
-        } else {
-            print("Failed path")
+            
+            if let radicalTable = kanjiLookupJson["radicalTable"] {
+                kanjiRadicalLookup = [:]
+                for (key, value) in radicalTable as! NSDictionary {
+                    kanjiRadicalLookup[key as! String] = Set(value as! [String])
+                }
+            }
         }
+        
+        if let kanjiInfoJson = getJSONAssetAsNSDictionary(assetName: "kanji") {
+           kanjiInfo = kanjiInfoJson
+        }
+    }
+    
+    
+    private func getJSONAssetAsNSDictionary(assetName name:String) -> NSDictionary? {
+        if let asset = NSDataAsset(name:name) {
+            do {
+                return try NSJSONSerialization.JSONObjectWithData(asset.data, options: NSJSONReadingOptions.MutableContainers) as? NSDictionary
+            } catch {
+            }
+        }
+        
+        return nil
     }
     
     
@@ -70,12 +73,55 @@ class SearchService {
         return tokens
     }
     
-    private func getMatches(token t: String) -> Set<String> {
-        if let results = kanjiRadicalLookup[t] {
-            return results
-        } else {
-            return []
+    private func getRadicals(kanji k: String) -> [String]? {
+        if let kanjiEntry = kanjiInfo[k] as? NSDictionary {
+            if let radicalString = kanjiEntry["radical"] as? String {
+                return radicalString.characters.map { String($0) }
+            }
         }
+        
+        return []
+    }
+    
+    private func getStrokes(kanji k: String) -> Int {
+        if let kanjiEntry = kanjiInfo[k] as? NSDictionary {
+            if let strokes = kanjiEntry["strokes"] as? Int {
+                return strokes
+            }
+        }
+        
+        return -1
+    }
+    
+    private func getMatches(token t: String) -> Set<String> {
+        var results = Set<String>()
+        
+        // For meaning matches, look for the same combination of radicals in other
+        // kanji so that we can identify complex primitives
+        if let meaningMatches = kanjiMeaningLookup[t] {
+            results.unionInPlace(meaningMatches)
+            for match in meaningMatches {
+                if let kanjiRadicals = getRadicals(kanji:match) {
+                    results.unionInPlace(searchKanji(tokens:kanjiRadicals))
+                }
+            }
+        }
+        
+        if let radicalMatches = kanjiRadicalLookup[t] {
+            results.unionInPlace(radicalMatches)
+        }
+        
+        return results
+    }
+    
+    
+    private func searchKanji(tokens tokens: [String]) -> Set<String> {
+        var results = getMatches(token: tokens[0])
+        for token in tokens[1..<tokens.count] {
+            results.intersectInPlace(getMatches(token: token))
+        }
+        
+        return results
     }
     
     
@@ -85,12 +131,7 @@ class SearchService {
             return []
         }
         
-        var results = getMatches(token: tokens[0])
-        for token in tokens[1..<tokens.count] {
-            results.intersectInPlace(getMatches(token: token))
-        }
-        
-        return Array(results)
+        return Array(searchKanji(tokens:tokens)).sort { getStrokes(kanji: $0) < getStrokes(kanji: $1) }
     }
 }
 
